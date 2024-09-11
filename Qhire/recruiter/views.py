@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
 from .models import *
-from .serializers import UserSerializer,RecruiterSerializer
+from .serializers import UserSerializer,RecruiterSerializer,JobPostSerializer
 # from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate,login as auth_login
@@ -105,3 +105,25 @@ class LogoutView(APIView):
             return JsonResponse({'error': 'Refresh token is required'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+
+
+
+class JobPostCreate(APIView):
+    def post(self, request):
+        try:
+            data = request.data
+            recruiter = Recruiter.objects.get(user=request.user)
+            skills = data.pop('skills', [])
+            
+            job_post_serializer = JobPostSerializer(data=data)
+            if job_post_serializer.is_valid():
+                job_post = job_post_serializer.save(recruiter=recruiter)
+                
+                # Add the many-to-many relationship with skills
+                job_post.skills.set(skills)  # Assign the skills to the job post
+                return JsonResponse({"status": "Job post created successfully!"}, status=201)
+            else:
+                return JsonResponse(job_post_serializer.errors, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
