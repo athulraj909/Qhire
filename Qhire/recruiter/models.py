@@ -25,3 +25,26 @@ class Recruiter(models.Model):
     def __str__(self):
         
         return self.full_name
+
+class Skills(models.Model):
+    title = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+
+class JobPost(models.Model):
+    recruiter_id = models.ForeignKey(Recruiter, on_delete=models.CASCADE)
+    title = models.CharField(max_length=50)
+    description = models.TextField()
+    location = models.CharField(max_length=50)
+    salary_range = models.CharField(max_length=50)
+    experience_required = models.CharField(max_length=50)
+    skills = models.ForeignKey(Skills, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
