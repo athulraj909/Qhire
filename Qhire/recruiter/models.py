@@ -29,6 +29,7 @@ class CustomUserManager(BaseUserManager):
 class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
     username = None
+    user_type = models.CharField(max_length=10, choices=[('recruiter', 'Recruiter'), ('job_seeker', 'Job Seeker')])
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
@@ -74,3 +75,32 @@ class JobPost(models.Model):
 
     def __str__(self):
         return self.title
+    
+
+
+class JobSeeker(models.Model):
+    jobSeeker_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    full_name = models.CharField(max_length=50)
+    contact_number = models.IntegerField()
+    address = models.TextField(max_length=100)
+    education = models.TextField(max_length=100)
+    experience = models.TextField(max_length=100)
+    resume = models.FileField(upload_to='resumes/')
+    certifications = models.TextField(max_length=100)
+    Skills = models.ManyToManyField(Skills)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.full_name
+    
+
+class JobApplication(models.Model):
+    job_seeker_id = models.ForeignKey(JobSeeker, on_delete=models.CASCADE)
+    job_post_id = models.ForeignKey(JobPost, on_delete=models.CASCADE)
+    status = models.CharField(max_length=50)
+    applied_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.job_seeker_id.full_name
