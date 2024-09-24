@@ -85,7 +85,7 @@ class JobSeeker(models.Model):
     address = models.TextField(max_length=100)
     education = models.TextField(max_length=100)
     experience = models.TextField(max_length=100)
-    resume = models.FileField(upload_to='resumes/')
+    resume = models.FileField(upload_to='media')
     certifications = models.TextField(max_length=100)
     Skills = models.ManyToManyField(Skills)
     created_at = models.DateTimeField(auto_now_add=True)

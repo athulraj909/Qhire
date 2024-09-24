@@ -5,6 +5,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from rest_framework.routers import DefaultRouter
 from recruiter.views import UserViewSet,RecruiterViewSet
+from django.conf import settings
+from django.conf.urls.static import static
 
 router = DefaultRouter()
 router.register('user', UserViewSet)
@@ -26,5 +28,10 @@ urlpatterns = [
     path('jobpost/update/<int:job_post_id>/', JobPostUpdate.as_view(), name='jobpost_update'),
 
 
+    path('register/jobseeker/', JobSeekerRegister.as_view(), name='jobseeker_register'),
+    path('jobseeker/jobpost/', JobSeekerJobPostList.as_view(), name='jobseeker_jobpost_list'),
 
-]
+
+
+
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

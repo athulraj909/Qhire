@@ -27,3 +27,11 @@ class JobPostSerializer(serializers.ModelSerializer):
         model = JobPost
         fields = ['id', 'title', 'description', 'location', 'salary_range', 'experience_required', 'skills']
         read_only_fields = ['created_at', 'updated_at', 'recruiter_id']
+
+
+class JobSeekerSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    skills = SkillsSerializer(many=True)
+    class Meta:
+        model = JobSeeker
+        fields = ['user', 'full_name', 'contact_number', 'address', 'education', 'experience', 'resume', 'certifications', 'skills', 'created_at', 'updated_at']

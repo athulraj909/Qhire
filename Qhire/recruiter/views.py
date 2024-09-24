@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
 from .models import *
-from .serializers import UserSerializer,RecruiterSerializer,JobPostSerializer,SkillsSerializer
+from .serializers import UserSerializer,RecruiterSerializer,JobPostSerializer,SkillsSerializer,JobSeekerSerializer
 # from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate,login as auth_login
@@ -13,6 +13,18 @@ from rest_framework.views import APIView
 from django.contrib.auth.hashers import make_password
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import BasePermission
+
+
+class IsRecruiter(BasePermission):
+    def has_permission(self, request, view):
+        # Check if the user is authenticated and has user_type == 'recruiter'
+        return request.user.is_authenticated and request.user.user_type == 'recruiter'
+
+class IsJobSeeker(BasePermission):
+    def has_permission(self, request, view):
+        # Check if the user is authenticated and has user_type == 'job_seeker'
+        return request.user.is_authenticated and request.user.user_type == 'job_seeker'
 
 
 
@@ -31,6 +43,19 @@ class RecruiterViewSet(viewsets.ModelViewSet):
     serializer_class = RecruiterSerializer
 
 
+class JobPostViewSet(viewsets.ModelViewSet):
+    queryset = JobPost.objects.all()
+    serializer_class = JobPostSerializer
+
+class SkillsViewSet(viewsets.ModelViewSet):
+    queryset = Skills.objects.all()
+    serializer_class = SkillsSerializer
+
+class JobSeekerViewSet(viewsets.ModelViewSet):
+    queryset = JobSeeker.objects.all()
+    serializer_class = JobSeekerSerializer
+
+
 
 
 class RecruiterRegister(APIView):
@@ -40,7 +65,7 @@ class RecruiterRegister(APIView):
             print(recruiter)
             data = request.data.get('data')
             print(data)
-            user = User(email=recruiter['email'], password=make_password(recruiter['password']), is_active=True)
+            user = User(email=recruiter['email'], password=make_password(recruiter['password']),user_type="recruiter", is_active=True)
             user.save()
             recruiter_data = Recruiter.objects.create(
                 user = user,
@@ -65,10 +90,11 @@ class RecruiterRegister(APIView):
 
 
 class RecruiterProfile(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsRecruiter]
 
     def get(self, request):
         user = request.user
+       
         user_data = {
             "email": user.email,
             "recruiter_info": {},
@@ -92,7 +118,7 @@ class RecruiterProfile(APIView):
 
 
 class RecruiterProfileUpdate(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsRecruiter]
 
     def put(self, request, format=None):
         try:
@@ -141,7 +167,7 @@ class LogoutView(APIView):
             if refresh_token:
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-                return JsonResponse({'status': 'Successfully logged out'}, status=205)  # 205 Reset Content
+                return JsonResponse({'status': 'Successfully logged out'}, status=205) 
 
             return JsonResponse({'error': 'Refresh token is required'}, status=400)
         except Exception as e:
@@ -151,6 +177,8 @@ class LogoutView(APIView):
 
 
 class JobPostCreate(APIView):
+
+    permission_classes = [IsAuthenticated,IsRecruiter]
     def post(self, request):
         try:
             data = request.data
@@ -185,7 +213,7 @@ class JobPostCreate(APIView):
         
 
 class JobPostUpdate(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsRecruiter]
 
     def put(self, request, job_post_id):
         try:
@@ -220,7 +248,7 @@ class JobPostUpdate(APIView):
 
 
 class JobPostList(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsRecruiter]
 
     def get(self, request, format=None):
         try:
@@ -248,6 +276,96 @@ class JobPostList(APIView):
                     "updated_at": job_post.updated_at
                 }
                 
+                response_data.append(job_post_data)
+
+            return JsonResponse(response_data, safe=False, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+
+# USER................................................................................
+
+
+class JobSeekerRegister(APIView):
+    def post(self, request, format=None):
+        try:
+            # Extract job seeker and data fields from the request
+            job_seeker_data = request.data.get('job_seeker')
+            data = request.data.get('data')
+            skills = request.data.getlist('skills')  # Fetch as list of strings
+
+            # Check if the data is in string format and convert to dict
+            if isinstance(job_seeker_data, str):
+                import json
+                job_seeker_data = json.loads(job_seeker_data)
+            if isinstance(data, str):
+                data = json.loads(data)
+
+            # Convert skills to integers
+            skills = [int(skill_id) for skill_id in skills if skill_id.isdigit()]
+
+            # Handle user creation
+            user = CustomUser(
+                email=job_seeker_data['email'],
+                password=make_password(job_seeker_data['password']),
+                user_type="job_seeker",
+                is_active=True
+            )
+            user.save()
+
+            # Handle job seeker profile creation
+            job_seeker = JobSeeker(
+                jobSeeker_id=user,
+                full_name=data.get('full_name'),
+                contact_number=data.get('contact_number'),
+                address=data.get('address'),
+                education=data.get('education'),
+                experience=data.get('experience'),
+                certifications=data.get('certifications'),
+                resume=request.FILES.get('resume')  # Handle file upload
+            )
+            job_seeker.save()
+
+            # Add skills to the job seeker
+            job_seeker.Skills.set(skills)
+
+            return JsonResponse({"status": 1}, safe=False)
+
+        except Exception as e:
+            return JsonResponse({"status": 0, "error": str(e)}, safe=False)
+
+
+
+
+class JobSeekerJobPostList(APIView):
+    permission_classes = [IsAuthenticated, IsJobSeeker]
+
+    def get(self, request, format=None):
+        try:
+            # Retrieve all job posts
+            job_posts = JobPost.objects.all()
+
+            # Serialize the job posts
+            response_data = []
+            for job_post in job_posts:
+                skills = job_post.skills.all()
+                skills_list = [skill.title for skill in skills]
+                
+                job_post_data = {
+                    "id": job_post.id,
+                    "title": job_post.title,
+                    "description": job_post.description,
+                    "location": job_post.location,
+                    "salary_range": job_post.salary_range,
+                    "experience_required": job_post.experience_required,
+                    "skills": skills_list,
+                    "created_at": job_post.created_at,
+                    "updated_at": job_post.updated_at
+                }
                 response_data.append(job_post_data)
 
             return JsonResponse(response_data, safe=False, status=status.HTTP_200_OK)
